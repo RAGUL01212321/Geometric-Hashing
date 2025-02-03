@@ -4,6 +4,7 @@ from Bio.PDB import PDBParser
 import hashlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.linalg import svd
 
 # Step 1: Parse PDB File & Extract Features
 def parse_pdb(file_path):
@@ -43,44 +44,60 @@ def compute_invariants(atom_positions):
         transformed_positions.append((d1, d2, theta))  # Store transformed positions for visualization
     return np.array(invariants), np.array(transformed_positions)
 
-# Step 3: Hashing Function for Efficient Retrieval
+# Step 3: Apply SVD for Dimensionality Reduction
+def apply_svd(features, n_components=2):
+    U, S, Vt = svd(features, full_matrices=False)
+    return U[:, :n_components]  # Reduce to n_components dimensions
+
+# Step 4: Hashing Function for Efficient Retrieval
 def generate_hash(feature_vector):
     feature_str = "_".join(map(str, feature_vector.flatten()))
     return hashlib.md5(feature_str.encode()).hexdigest()
 
-# Step 4: Store & Retrieve Structures Efficiently
+# Step 5: Store & Retrieve Structures Efficiently
 class ProteinDatabase:
     def __init__(self):
         self.feature_hashes = {}  # Dictionary for hashing
         self.kd_tree = None
+        self.svd_kd_tree = None
         self.features = []
+        self.svd_features = []
 
     def add_protein(self, pdb_file, protein_id):
         positions = parse_pdb(pdb_file)
         features, _ = compute_invariants(positions)
+        svd_features = apply_svd(features)
         
-        for feature in features:
+        for feature, svd_feature in zip(features, svd_features):
             hash_key = generate_hash(feature)
             self.feature_hashes[hash_key] = protein_id
             self.features.append(feature)
+            self.svd_features.append(svd_feature)
         
-        self.kd_tree = KDTree(self.features)  # Fast retrieval
+        self.kd_tree = KDTree(self.features)  # KD-Tree for full features
+        self.svd_kd_tree = KDTree(self.svd_features)  # KD-Tree for reduced SVD features
 
-    def retrieve_protein(self, query_feature):
-        if self.kd_tree is None:
-            return None
+    def retrieve_protein(self, query_feature, use_svd=False):
+        if use_svd:
+            if self.svd_kd_tree is None:
+                return None
+            query_svd = apply_svd(query_feature.reshape(1, -1))  # Ensure it's 2D
+            _, idx = self.svd_kd_tree.query(query_svd[0])  # Extract first component correctly
+
+        else:
+            if self.kd_tree is None:
+                return None
+            query_svd = apply_svd(query_feature.reshape(1, -1))  # Ensure 2D transformation
+            if query_svd.shape[1] != 2:  # Validate shape before querying KDTree
+                raise ValueError(f"Expected 2D feature vector, got shape {query_svd.shape}")
+
+            _, idx = self.svd_kd_tree.query(query_svd[0])  # Use correctly shaped query
+
         
-        _, idx = self.kd_tree.query(query_feature, k=1)  # Ensure it returns a single index
-        idx = int(idx)  # Convert to an integer index
         hash_key = generate_hash(self.features[idx])
         return self.feature_hashes.get(hash_key, "Not Found")
-    
-    def display_hash_table(self):
-        print("\nHash Table:")
-        for k, v in self.feature_hashes.items():
-            print(f"Hash: {k} -> Protein: {v}")
 
-# Step 5: Visualization of Protein Structures
+# Step 6: Visualization of Protein Structures
 def visualize_protein_structure(atom_positions, transformed_positions, title_original="Original Protein Structure", title_transformed="Transformed Structure"):
     fig = plt.figure(figsize=(12, 5))
     
@@ -109,11 +126,12 @@ def visualize_protein_structure(atom_positions, transformed_positions, title_ori
 # Example Usage
 db = ProteinDatabase()
 db.add_protein("C:\\Amrita_S2\\DSA proj\\2c0k.pdb", "Protein_1")
-db.display_hash_table()
 
 query_feature, transformed_positions = compute_invariants(parse_pdb("C:\\Amrita_S2\\DSA proj\\2c0k.pdb"))
-retrieved_protein = db.retrieve_protein(query_feature[0])
-print("Retrieved Protein:", retrieved_protein)
+retrieved_protein_kd = db.retrieve_protein(query_feature[0], use_svd=False)
+retrieved_protein_svd = db.retrieve_protein(query_feature[0], use_svd=True)
+print("Retrieved Protein (KD-Tree):", retrieved_protein_kd)
+print("Retrieved Protein (SVD + KD-Tree):", retrieved_protein_svd)
 
 # Visualize Original and Transformed Structures
 original_positions = parse_pdb("C:\\Amrita_S2\\DSA proj\\2c0k.pdb")

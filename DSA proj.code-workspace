@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "DSA proj",
+			"path": "."
+		},
+		{
+			"name": "pdb_files",
+			"path": "../DSA_proj/pdb_files"
+		}
+	],
+	"settings": {}
+}
