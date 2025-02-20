@@ -1,6 +1,5 @@
 import random
 
-# Step 1: Generate random 3D data points
 def generate_3d_points(n):
     points = []
     for _ in range(n):
@@ -10,13 +9,12 @@ def generate_3d_points(n):
         points.append([x, y, z])
     return points
 
-# Step 2: Compute mean of each dimension
+
 def mean_vector(points):
     n = len(points)
     mean = [sum(p[i] for p in points) / n for i in range(3)]
     return mean
 
-# Step 3: Compute the covariance matrix
 def covariance_matrix(points, mean):
     n = len(points)
     cov_matrix = [[0] * 3 for _ in range(3)]
@@ -26,7 +24,6 @@ def covariance_matrix(points, mean):
             for j in range(3):
                 cov_matrix[i][j] += (p[i] - mean[i]) * (p[j] - mean[j])
     
-    # Normalize by (n - 1)
     for i in range(3):
         for j in range(3):
             cov_matrix[i][j] /= (n - 1)
