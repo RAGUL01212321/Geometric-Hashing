@@ -1,37 +1,41 @@
-import numpy as np
 import pandas as pd
+import numpy as np
+import os
+import hashlib
 
-# Set random seed for reproducibility
-np.random.seed(42)
+# Load the SVD-transformed CSV file
+svd_file = "Protein_SVD_Coordinates.csv"  # Update with your actual file
+df = pd.read_csv(svd_file)
 
-num_proteins = 10
-atoms_per_protein = 50
-protein_names = [f"Protein_{i+1}" for i in range(num_proteins)]
+# Create a directory to store individual protein files
+output_dir = "Protein_SVD_Separated"
+os.makedirs(output_dir, exist_ok=True)
 
-protein_data = []
-svd_matrices = {}
+# Dictionary to store hash mappings
+hash_mapping = {}
 
-for protein in protein_names:
-    x = np.random.uniform(-10, 10, atoms_per_protein)
-    y = np.random.uniform(-10, 10, atoms_per_protein)
-    z = np.random.uniform(-10, 10, atoms_per_protein)
-    
-    coords = np.column_stack((x, y, z))
-    
-    # Apply SVD
-    U, S, Vt = np.linalg.svd(coords, full_matrices=False)
+# Iterate over unique proteins
+for protein in df["Protein"].unique():
+    # Extract SVD coordinates for the current protein
+    protein_data = df[df["Protein"] == protein][["SVD1", "SVD2", "SVD3"]].values
 
-    # Store matrices for reconstruction
-    svd_matrices[protein] = {"U": U, "S": S, "Vt": Vt}
+    # Compute Centroid (Mean of all SVD coordinates)
+    centroid = np.mean(protein_data, axis=0)
 
-    # Store reduced representation
-    for i in range(atoms_per_protein):
-        protein_data.append([protein, U[i, 0] * S[0], U[i, 1] * S[1], U[i, 2] * S[2]])
+    # Generate a Hash Key (SHA-256 of centroid values)
+    hash_key = hashlib.sha256(centroid.tobytes()).hexdigest()
 
-df = pd.DataFrame(protein_data, columns=["Protein", "SVD1", "SVD2", "SVD3"])
-df.to_csv("Protein_SVD_Coordinates.csv", index=False)
+    # Save the SVD coordinates to a separate file named after the hash key
+    protein_filename = f"{hash_key}.csv"
+    np.savetxt(os.path.join(output_dir, protein_filename), protein_data, delimiter=",")
 
-# Save U, S, Vt for reconstruction
-np.save("svd_matrices.npy", svd_matrices)
+    # Store mapping (Protein Name → Hash Key)
+    hash_mapping[protein] = hash_key
 
-print("✅ SVD data and matrices saved successfully!")
+# Save the mapping file for retrieval
+mapping_df = pd.DataFrame(list(hash_mapping.items()), columns=["Protein", "Hash_Key"])
+mapping_df.to_csv("Protein_Hash_Mapping.csv", index=False)
+
+print(f"Processed {len(hash_mapping)} proteins. Data saved in '{output_dir}'.")
+print("Protein hash mapping saved as 'Protein_Hash_Mapping.csv'.")
+
