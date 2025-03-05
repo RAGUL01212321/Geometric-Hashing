@@ -4,7 +4,7 @@ import os
 import hashlib
 
 # Load the SVD-transformed CSV file
-svd_file = r"C:\Amrita_S2\DSA proj\Protein_Coordinates_v2.0 (25-05-2025)\1A3N_ca_coordinates.csv"  # Update with your actual file
+svd_file = "Protein_SVD_Coordinates.csv"  # Update with your actual file
 df = pd.read_csv(svd_file)
 
 # Create a directory to store individual protein files

@@ -14,7 +14,7 @@ def scatter_plot_preprocessed_data(data_file):
     ax.scatter(0, points[:, 1],0, c='b', marker='o', alpha=0.7)
     
     # Set labels for axes
-    ax.set_title("3D Scatter Plot of Preprocessed Data")
+    ax.set_title("3D Scatter Plot of Preprocessed Data")    
     ax.set_xlabel("Principal Component 1")
     ax.set_ylabel("Principal Component 2")
     ax.set_zlabel("Principal Component 3")
