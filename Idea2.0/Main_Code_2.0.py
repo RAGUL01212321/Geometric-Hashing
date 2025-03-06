@@ -1,10 +1,9 @@
-# Search through Protein ID
+# Search using coordinates
 
 import os
 import pandas as pd
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
-from scipy.spatial import KDTree
 from sklearn.decomposition import TruncatedSVD
 from collections import defaultdict
 
@@ -72,7 +71,7 @@ def compute_features(coords):
 
     feature_vector = np.hstack([pairwise_distances, angles, dihedrals])
 
-    # **Ensure fixed-length feature vector**
+    # **FIX: Ensure fixed-length feature vector**
     if feature_vector.shape[0] < MAX_FEATURE_SIZE:
         feature_vector = np.pad(feature_vector, (0, MAX_FEATURE_SIZE - feature_vector.shape[0]), mode='constant')
     else:
@@ -118,35 +117,43 @@ for key, proteins in hash_table.items():
     print(f"Hash Key: {key}")
     for protein in proteins:
         print(f"  - Protein ID: {protein['protein_id']}")
-        print(f"  - Features: {protein['features'][:5]} ... (truncated)\n")
 
-# ---------------------- STEP 5: Build KDTree for Fast Search ---------------------- #
+# ---------------------- STEP 5: Query System Using Protein Coordinates ---------------------- #
 
-feature_tree = KDTree(reduced_features)
+def find_similar_proteins(query_features, hash_table, k=5):
+    """Finds similar proteins based on query feature vector."""
+    query_hash_key = hash_function(query_features)
+    candidates = hash_table.get(query_hash_key, [])
+    
+    if not candidates:
+        return "No similar proteins found in hash table."
+    
+    similarities = [
+        (protein["protein_id"], np.linalg.norm(query_features - protein["features"]))
+        for protein in candidates
+    ]
+    
+    similarities.sort(key=lambda x: x[1])
+    return similarities[:k]
 
-def find_similar_proteins(query_features, k=5):
-    """Finds top-k similar proteins using KDTree."""
-    num_proteins = len(protein_ids)
-    k = min(k, num_proteins)  # Ensure k does not exceed the available proteins
+# ---------------------- STEP 6: Searching Using Query Protein Coordinates ---------------------- #
 
-    distances, indices = feature_tree.query(query_features, k=k)
+query_file = r"C:\Amrita_S2\DSA proj\Reconstructed_Protein_Coordinates.csv"  # Change this for another protein search
 
-    # Ensure distances & indices are iterable (handle single-protein case)
-    if k == 1:
-        distances = [distances]
-        indices = [indices]
+if os.path.exists(query_file):
+    query_df = pd.read_csv(query_file, usecols=['X', 'Y', 'Z'])
+    query_df = query_df.apply(pd.to_numeric, errors='coerce')
+    query_df.dropna(inplace=True)
 
-    results = [(protein_ids[i], distances[idx]) for idx, i in enumerate(indices)]
-    return results
+    if query_df.empty:
+        print("⚠️ Query protein has no valid numeric coordinates!")
+    else:
+        query_coordinates = query_df.values
+        query_features = compute_features(query_coordinates)
+        query_features_reduced = svd.transform(query_features.reshape(1, -1))
 
-# ---------------------- STEP 6: Query the Database for Similar Proteins ---------------------- #
-print(protein_ids)  # Check if "1A3N" is present
-
-query_index = protein_ids.index("6VXX_ca_coordinates")  # Find index of "1A3N"
-query_protein_features = reduced_features[query_index]  # Use its feature vector
-similar_proteins = find_similar_proteins(query_protein_features, k=5)  # Find top 5 matches
-
-
-print("\n✅ Top Similar Proteins:")
-for protein_id, distance in similar_proteins:
-    print(f"🔹 {protein_id} (Distance: {distance:.4f})")
+        # Search for similar proteins
+        similar_proteins = find_similar_proteins(query_features_reduced[0], hash_table, k=5)
+        print("\n✅ Similar proteins found:", similar_proteins)
+else:
+    print(f"❌ Query file not found: {query_file}")
