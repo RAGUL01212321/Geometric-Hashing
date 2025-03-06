@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
-from scipy.spatial import KDTree
 from sklearn.decomposition import TruncatedSVD
 from collections import defaultdict
 
@@ -70,7 +69,7 @@ def compute_features(coords):
 
     feature_vector = np.hstack([pairwise_distances, angles, dihedrals])
 
-    # **Ensure fixed-length feature vector**
+    # **FIX: Ensure fixed-length feature vector**
     if feature_vector.shape[0] < MAX_FEATURE_SIZE:
         feature_vector = np.pad(feature_vector, (0, MAX_FEATURE_SIZE - feature_vector.shape[0]), mode='constant')
     else:
@@ -112,36 +111,29 @@ for i, protein_id in enumerate(protein_ids):
 
 # Display the Hash Table
 print("\n🔹 Geometric Hash Table:")
-for key, proteins in hash_table.items():
-    print(f"Hash Key: {key}")
+for key, proteins in list(hash_table.items())[:5]:  # Display first 5 entries
+    print(f"🔑 Hash Key: {key}")
     for protein in proteins:
         print(f"  - Protein ID: {protein['protein_id']}")
         print(f"  - Features: {protein['features'][:5]} ... (truncated)\n")
 
-# ---------------------- STEP 5: Build KDTree for Fast Search ---------------------- #
+# ---------------------- STEP 5: Query System for Similar Proteins ---------------------- #
 
+from scipy.spatial import KDTree
+
+# Build KDTree for efficient similarity search
 feature_tree = KDTree(reduced_features)
 
 def find_similar_proteins(query_features, k=5):
     """Finds top-k similar proteins using KDTree."""
-    num_proteins = len(protein_ids)
-    k = min(k, num_proteins)  # Ensure k does not exceed the available proteins
-
     distances, indices = feature_tree.query(query_features, k=k)
-
-    # Ensure distances & indices are iterable (handle single-protein case)
-    if k == 1:
-        distances = [distances]
-        indices = [indices]
-
-    results = [(protein_ids[i], distances[idx]) for idx, i in enumerate(indices)]
+    results = [(protein_ids[i], distances[i]) for i in indices]
     return results
 
-# ---------------------- STEP 6: Query the Database for Similar Proteins ---------------------- #
-
+# Test Query (Using First Protein as Query)
 query_protein_features = reduced_features[0]  
 similar_proteins = find_similar_proteins(query_protein_features, k=5)
 
-print("\n✅ Top Similar Proteins:")
+print("\n✅ Top 5 Similar Proteins:")
 for protein_id, distance in similar_proteins:
     print(f"🔹 {protein_id} (Distance: {distance:.4f})")
