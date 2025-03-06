@@ -23,7 +23,7 @@ for filename in os.listdir(directory_path):
         df = df.apply(pd.to_numeric, errors='coerce')
         df.dropna(inplace=True)  
 
-        if df.empty:
+        if df.empty: #hello
             print(f"⚠️ Warning: {protein_id} has no valid numeric coordinates. Skipping.")
             continue  
 
