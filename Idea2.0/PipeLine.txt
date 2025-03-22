@@ -1,0 +1,8 @@
+1 : Get the proteins coordinates.
+2 : Normalize the data.
+3 : Apply SVD to the Normalized data.
+4 : Extract the geometric features.
+5 : Generate the hash key.
+6 : Build the hash table. 
+7 : Search the Protein. 
+8 : Retrieve the Protein file. 
